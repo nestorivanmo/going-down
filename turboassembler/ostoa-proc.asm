@@ -20,6 +20,13 @@ MIDSCREEN EQU 20h
 ;computer clock variables 
 computerTime db 11, '  :  :  :  ', '$'
 temp db 10 
+;ascii variables 
+WHITESPACE EQU 32 
+asciiIndex dw  32 
+asciiWidth dw 33 
+asciiHeight dw 08 
+rowChar dw 05 
+columnChar dw 04 
 ;gral variables 
 warning db 10, 'Procedures','$'
 
@@ -28,12 +35,28 @@ Beginning:
 	call slvData
 	call clrScreen
 	call drawmargins
+	
+	mov ax,06h
+	push ax 
+	mov ax,03h
+	push ax 
+	mov ax,offset asciiWidth
+	push ax 
+	mov ax,offset asciiHeight
+	push ax 
+	mov ax,offset asciiIndex
+	push ax 
+	mov ax,offset rowChar
+	push ax 
+	mov ax,offset columnChar
+	push ax 
+	call ascii 
+	
 	mov ax,02h 
 	push ax
 	mov ax,MIDSCREEN
 	push ax 
 	call computerclock
-	;call ascii
 Ending: 
 	call exitP
 
@@ -73,6 +96,42 @@ printS proc; Push order(string)
 	int 21h
 	ret 2
 printS endp
+
+ascii proc; Push Order: (row,column,asciiWidth,asciiHeight,asciiIndex,rowChar,columnChar)
+	mov bp,sp 
+	mov ax,[bp+14];ax=row 
+	push ax 
+	mov ax,[bp+12];ax=column
+	push ax 
+	call moveCursor
+	mov bp,sp 
+	mov cx,[bp+8];cx=asciiHeight
+	mov bx,[bp+8]
+	mov al,[bp+4];rowChar 
+	mov ch,[bp+6];asciiIndex 
+	l1:
+		mov dh,al  
+		mov dl,[bp+2];colChar 
+		mov ah,02h
+		int 10h 
+		inc al 
+		inc al 
+		mov cx,[bp+10]
+		l2:
+			mov dl,ch;asciiIndex
+			mov ah,02h 
+			int 21h 
+			mov dl,WHITESPACE
+			mov ah,02h 
+			int 21h 
+			inc ch
+		loop l2 
+		dec bx 
+		mov cx,bx 
+	loop l1 
+	ret 14
+ascii endp
+
 drawmargins proc 
 	;top margin 
 	mov ax,00
