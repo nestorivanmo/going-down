@@ -22,13 +22,13 @@ computerTime db 11, '  :  :  :  ', '$'
 temp db 10 
 ;ascii variables 
 WHITESPACE EQU 32 
-asciiIndex dw  32 
-asciiWidth dw 33 
-asciiHeight dw 08 
-rowChar dw 05 
-columnChar dw 04 
+asciiIndex dw 00 
+ASCIIWIDTH EQU 32
+ASCIIHEIGHT EQU 9
+initialRow dw 06
+initialColumn dw 03 
 ;gral variables 
-warning db 10, 'Procedures','$'
+warning db 30, 'Extended ASCII with Procedures','$'
 
 .code 
 Beginning: 
@@ -38,18 +38,22 @@ Beginning:
 	
 	mov ax,06h
 	push ax 
-	mov ax,03h
+	mov ax,15h
 	push ax 
-	mov ax,offset asciiWidth
+	call moveCursor
+	
+	mov ax,offset warning
 	push ax 
-	mov ax,offset asciiHeight
+	call printS
+	
+	mov ax,07h;initial row 
 	push ax 
-	mov ax,offset asciiIndex
+	mov ax,04h;initial column 
 	push ax 
-	mov ax,offset rowChar
+	mov ax,ASCIIWIDTH
 	push ax 
-	mov ax,offset columnChar
-	push ax 
+	mov ax,ASCIIHEIGHT
+	push ax
 	call ascii 
 	
 	mov ax,02h 
@@ -96,40 +100,45 @@ printS proc; Push order(string)
 	int 21h
 	ret 2
 printS endp
-
-ascii proc; Push Order: (row,column,asciiWidth,asciiHeight,asciiIndex,rowChar,columnChar)
+printC proc; Push order(char) 
 	mov bp,sp 
-	mov ax,[bp+14];ax=row 
-	push ax 
-	mov ax,[bp+12];ax=column
-	push ax 
-	call moveCursor
+	mov dl,[bp+2]
+	mov ah,02h 
+	int 21h 
+	ret 2
+printC endp
+	
+ascii proc; Push Order: (initialX,initialY,numRows,numCols)
 	mov bp,sp 
-	mov cx,[bp+8];cx=asciiHeight
-	mov bx,[bp+8]
-	mov al,[bp+4];rowChar 
-	mov ch,[bp+6];asciiIndex 
-	l1:
-		mov dh,al  
-		mov dl,[bp+2];colChar 
-		mov ah,02h
-		int 10h 
-		inc al 
-		inc al 
-		mov cx,[bp+10]
-		l2:
-			mov dl,ch;asciiIndex
-			mov ah,02h 
-			int 21h 
-			mov dl,WHITESPACE
-			mov ah,02h 
-			int 21h 
-			inc ch
-		loop l2 
+	;print Extended ASCII
+	mov bp,sp 
+	mov cx,[bp+2]
+	mov bx,cx 
+	rowsLoop:
+		mov ax,[bp+8]
+		push ax 
+		inc ax 
+		inc ax 
+		mov [bp+8],ax 
+		mov ax,[bp+6]
+		push ax 
+		call moveCursor
+		mov bp,sp
+		mov cx,[bp+4]
+		colsLoop:
+			mov ax,asciiIndex
+			push ax 
+			call printC
+			mov ax,WHITESPACE
+			push ax 
+			call printC
+			mov bp,sp 
+			inc asciiIndex
+		loop colsLoop
 		dec bx 
 		mov cx,bx 
-	loop l1 
-	ret 14
+	loop rowsLoop
+	ret 8
 ascii endp
 
 drawmargins proc 

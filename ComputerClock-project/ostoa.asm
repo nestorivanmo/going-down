@@ -187,7 +187,6 @@ ExtendedASCII:
 	mov dl,02h 
 	int 10h
 	;extended ascii
-	;nested loops 
 	mov cx,YLENGTH
 	mov bx,YLENGTH
 	l1: 
