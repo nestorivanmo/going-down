@@ -29,6 +29,12 @@ printChar macro char
 	mov ah,02h
 	int 21h
 endm 
+printString macro string,x,y
+	moveCursor x,y
+	mov ax,offset string 
+	push ax 
+	call printS
+endm 
 printMulChar macro char,numTimes 
 	mov bh,PAGEN
 	mov cx,numTimes
@@ -74,6 +80,25 @@ drawVerticalMargin macro midChar,x,y,heightS
 		moveCursor x,bl
 	loop verticalLoop
 endm 
+;ascii macros 
+printASCII macro x,y,numCols,numRows 
+	mov ax,x 
+	push ax 
+	mov ax,y 
+	push ax 
+	mov ax,numCols
+	push ax 
+	mov ax,numRows
+	push ax 
+	call ascii
+endm 
+printComputerClock macro x,y
+	mov ax,y
+	push ax 
+	mov ax,x 
+	push ax 
+	call computerClock
+endm
 .model small 
 .stack 64 
 .data 
@@ -91,14 +116,143 @@ PAGEN EQU 00
 WIDTHSCREEN EQU 49h
 HEIGHTSCREEN EQU 18h
 MIDSCREEN EQU 20h
+;ascii variables 
+WHITESPACE EQU 32 
+asciiIndex dw 00
+ASCIIWIDTH EQU 32 
+ASCIIHEIGHT EQU 9 
+;clock vars 
+computerTime db 11, '  :  :  :  ', '$'
+temp db 10 ;gral 
+warning db 26, 'Extended ASCII with Macros','$'
 .code 
 Beginning: 
 	slvData
 	clrScreen
-	;whole margin 
 	drawSquaredMargin 0,0,WIDTHSCREEN,HEIGHTSCREEN
-	;mid margin 
-	drawHorizontalMargin ML,MR,H,0,4,WIDTHSCREEN
+	drawHorizontalMargin ML,MR,H,0,3,WIDTHSCREEN
+	printString warning,22,5
+	printASCII 7,4,ASCIIWIDTH,ASCIIHEIGHT
+	printComputerClock MIDSCREEN,2
 Ending: 
 	finishExec
-end 	
+;some procedures 
+ascii proc; Push Order: (initialX,initialY,numRows,numCols)
+	mov bp,sp 
+	;print Extended ASCII
+	mov bp,sp 
+	mov cx,[bp+2]
+	mov bx,cx 
+	rowsLoop:
+		mov ax,[bp+8]
+		push ax 
+		inc ax 
+		inc ax 
+		mov [bp+8],ax 
+		mov ax,[bp+6]
+		push ax 
+		call moveCursorP
+		mov bp,sp
+		mov cx,[bp+4]
+		colsLoop:
+			mov ax,asciiIndex
+			push ax 
+			call printC
+			mov ax,WHITESPACE
+			push ax 
+			call printC
+			mov bp,sp 
+			inc asciiIndex
+		loop colsLoop
+		dec bx 
+		mov cx,bx 
+	loop rowsLoop
+	ret 8
+ascii endp
+printC proc; Push order(char) 
+	mov bp,sp
+	mov dl,[bp+2]
+	mov ah,02h 
+	int 21h 
+	ret 2
+printC endp
+moveCursorP proc ; Push order(row,column)
+	mov bp,sp 
+	mov dl,[bp+2];column 
+	mov dh,[bp+4];row 
+	mov bh,PAGEN
+	mov ah,02h 
+	int 10h
+	ret 4
+moveCursorP endp
+printS proc; Push order(string)
+	mov bp,sp
+	mov dx,[bp+2]
+	inc dx
+	mov ah,09h
+	int 21h
+	ret 2
+printS endp
+
+computerclock proc; Push order(row,column)
+getComputerClock:
+	mov bp,sp 
+	;move cursor to initial position 
+	mov ax,[bp+4]
+	push ax 
+	mov ax,[bp+2]
+	push ax 
+	call moveCursorP
+	;get computer clock time 
+	mov ah,02ch
+	int 21h
+	lea si,computerTime
+	inc si
+	;add hours and minutes to string 
+	mov ax,02 
+	push ax 
+	mov ax,cx 
+	push ax 
+	call time
+	;add seconds and micro seconds to string 
+	mov ax,02 
+	push ax 
+	mov ax,dx 
+	push ax 
+	call time 
+	;print computerTime string to the screen 
+	mov ax,offset computerTime
+	push ax 
+	call printS
+	;stop when user clicks ESC key 
+	in al,60h
+	dec al
+	cmp al,00
+	jne getComputerClock
+	ret 4
+computerclock endp
+time proc; Push order(numTimes,content,string)
+	mov bp,sp
+	;clean registers 
+	xor ax,ax 
+	xor bx,bx 
+	xor cx,cx 
+	;fetch parameters
+	mov bx,[bp+2];content
+	mov al,bh
+	mov cx,[bp+4];numTimes
+	timeloop:
+		div byte ptr [temp]
+		add al,30h
+		add ah,30h
+		mov [si],al;add first hours digit  
+		inc si
+		mov [si],ah;add second hours digit 
+		inc si
+		inc si
+		mov ax,00 
+		mov al,bl;change hours for minutes 
+	loop timeloop
+	ret 4
+time endp
+end
